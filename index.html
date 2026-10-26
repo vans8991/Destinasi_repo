@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ms">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#102a43"><meta name="description" content="Destinasi — prototaip navigasi komuniti.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<title>Destinasi — Navigasi</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<style>
+:root{--navy:#102a43;--blue:#0879f9;--bg:#f2f6fa;--ink:#142536;--muted:#617386;--line:#dce5ed}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:var(--ink);background:var(--bg)}
+header{height:64px;background:var(--navy);color:white;display:flex;align-items:center;gap:12px;padding:0 16px;box-shadow:0 2px 12px #001b2c25}
+.logo{width:38px;height:38px;border-radius:12px;background:#20b9e8;display:grid;place-items:center;font-size:23px}header h1{font-size:21px;margin:0}header small{display:block;color:#c8d9e8;font-size:11px}
+main{display:grid;grid-template-columns:minmax(300px,370px) 1fr;min-height:calc(100vh - 64px)}
+aside{padding:16px;overflow:auto;max-height:calc(100vh - 64px);background:white;border-right:1px solid var(--line)}
+#map{height:calc(100vh - 64px);min-height:500px;z-index:1}
+.card{border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px;background:white}
+h2{font-size:15px;margin:0 0 10px}.sub{color:var(--muted);font-size:12px;line-height:1.45}
+input,select,button{font:inherit}input,select{width:100%;border:1px solid #cbd8e4;border-radius:10px;padding:11px;margin:4px 0 8px;background:white;color:var(--ink)}
+button{border:0;border-radius:10px;padding:11px 12px;font-weight:650;cursor:pointer}
+.primary{background:var(--blue);color:white}.secondary{background:#eaf3ff;color:#0759ad}.dark{background:var(--navy);color:white}.danger{background:#fff0ed;color:#b62f20}
+.row{display:flex;gap:8px}.row>*{flex:1;min-width:0}.btnwide{width:100%;margin:3px 0}
+.status{font-size:12px;padding:9px 10px;border-radius:9px;background:#eef6ff;color:#22537b;margin-top:8px}
+.report{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-top:1px solid var(--line);gap:8px;font-size:13px}
+.pill{font-size:10px;background:#fff1c9;color:#75500a;border-radius:99px;padding:4px 7px;white-space:nowrap}
+#routeInfo{font-size:13px;line-height:1.5;margin-top:8px}.foot{font-size:11px;color:var(--muted);line-height:1.5}
+.leaflet-popup-content{font-size:13px}.user-dot{width:16px;height:16px;border:3px solid white;border-radius:50%;background:#0879f9;box-shadow:0 0 0 3px #0879f944}
+@media(max-width:800px){main{display:flex;flex-direction:column}#map{order:0;height:54vh;min-height:330px}aside{order:1;max-height:none;border-right:0;padding:12px}.card{margin-bottom:10px}header{height:58px}main{min-height:calc(100vh - 58px)}}
+</style>
+</head>
+<body>
+<header><div class="logo">➤</div><div><h1>Destinasi</h1><small>Navigasi komuniti · Prototaip</small></div></header>
+<main>
+<aside>
+ <section class="card">
+  <h2>📍 Lokasi & destinasi</h2>
+  <button id="locate" class="dark btnwide">Gunakan lokasi GPS saya</button>
+  <label class="sub" for="search">Cari destinasi atau alamat</label>
+  <input id="search" placeholder="Contoh: Waterfront Kuching">
+  <button id="find" class="primary btnwide">Cari tempat</button>
+  <div class="row"><button id="route" class="secondary">Kira laluan</button><button id="clear" class="secondary">Kosongkan</button></div>
+  <div id="routeInfo" class="sub">Pilih lokasi semasa dan destinasi untuk mengira laluan.</div>
+  <div id="status" class="status">Peta sedia. Benarkan akses lokasi untuk menggunakan GPS.</div>
+ </section>
+ <section class="card">
+  <h2>🚧 Laporan jalan komuniti</h2>
+  <p class="sub">Laporan di bawah disimpan pada peranti ini sahaja. Ia belum dikongsi dengan pengguna lain dan bukan data trafik langsung.</p>
+  <label class="sub" for="reportType">Jenis laporan</label>
+  <select id="reportType"><option>Jalan sesak</option><option>Kemalangan</option><option>Halangan jalan</option><option>Jalan rosak</option><option>Polis / pemeriksaan</option><option>Banjir</option></select>
+  <input id="reportNote" placeholder="Nota ringkas (pilihan)">
+  <button id="addReport" class="primary btnwide">Letak laporan pada peta</button>
+  <div id="reports"></div>
+ </section>
+ <section class="card">
+  <h2>ℹ️ Sumber data & had prototaip</h2>
+  <p class="foot">Peta: OpenStreetMap. Carian: Nominatim. Laluan kereta: pelayan demo OSRM. Perkhidmatan awam ini mempunyai had penggunaan dan bukan untuk trafik produksi berskala besar. Anggaran laluan tidak mengambil kira kesesakan langsung.</p>
+  <p class="foot">Untuk menerbitkan aplikasi sebenar: gunakan backend untuk laporan komuniti, sumber trafik berlesen/tersedia, dasar privasi dan had API. Lokasi GPS memerlukan HTTPS atau localhost.</p>
+ </section>
+</aside>
+<div id="map" aria-label="Peta navigasi"></div>
+</main>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+const $=id=>document.getElementById(id);
+const map=L.map('map').setView([1.5533,110.3592],13); // default view: Kuching
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
+let current=null,destination=null,currentMarker=null,destMarker=null,routeLine=null,searchMarker=null,reportMarkers=[],reports=[];
+const status=t=>$('status').textContent=t;
+function pinIcon(color){return L.divIcon({className:'',html:`<div style="background:${color};border:2px solid white;border-radius:50% 50% 50% 0;transform:rotate(-45deg);width:22px;height:22px;box-shadow:0 2px 5px #0004"><div style="transform:rotate(45deg);text-align:center;color:white;font-size:12px;line-height:18px">●</div></div>`,iconSize:[22,22],iconAnchor:[11,22]})}
+function setCurrent(latlng){current=latlng;if(currentMarker)map.removeLayer(currentMarker);currentMarker=L.marker(latlng,{icon:pinIcon('#0879f9')}).addTo(map).bindPopup('Lokasi anda');}
+function setDestination(latlng,label){destination=latlng;if(destMarker)map.removeLayer(destMarker);destMarker=L.marker(latlng,{icon:pinIcon('#16a36a')}).addTo(map).bindPopup(label||'Destinasi');}
+$('locate').onclick=()=>{if(!navigator.geolocation){status('GPS tidak disokong oleh pelayar ini.');return}status('Mendapatkan lokasi GPS…');navigator.geolocation.getCurrentPosition(p=>{setCurrent([p.coords.latitude,p.coords.longitude]);map.setView(current,16);status('Lokasi GPS diperoleh.');},e=>status('GPS gagal: '+e.message+' Pastikan kebenaran lokasi diaktifkan dan gunakan HTTPS.'),{enableHighAccuracy:true,timeout:12000})};
+async function findPlace(){const q=$('search').value.trim();if(!q){status('Masukkan nama tempat atau alamat dahulu.');return}status('Mencari tempat…');try{const u='https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&q='+encodeURIComponent(q);const r=await fetch(u,{headers:{'Accept-Language':'ms,en'}});if(!r.ok)throw Error('Carian tidak tersedia');const d=await r.json();if(!d.length){status('Tempat tidak ditemui. Cuba nama atau alamat yang lebih khusus.');return}const p=d[0],ll=[Number(p.lat),Number(p.lon)];setDestination(ll,p.display_name);map.setView(ll,15);$('routeInfo').textContent='Destinasi dipilih: '+p.display_name;status('Destinasi ditemui. Tekan “Kira laluan”.')}catch(e){status('Carian gagal. Semak sambungan internet dan cuba lagi.')} }
+$('find').onclick=findPlace;$('search').addEventListener('keydown',e=>{if(e.key==='Enter')findPlace()});
+$('route').onclick=async()=>{if(!current){status('Dapatkan lokasi GPS anda dahulu.');return}if(!destination){status('Cari dan pilih destinasi dahulu.');return}status('Mengira laluan…');try{const a=current,b=destination;const u=`https://router.project-osrm.org/route/v1/driving/${a[1]},${a[0]};${b[1]},${b[0]}?overview=full&geometries=geojson`;const r=await fetch(u);if(!r.ok)throw Error();const d=await r.json();if(d.code!=='Ok'||!d.routes.length)throw Error();const rt=d.routes[0];if(routeLine)map.removeLayer(routeLine);routeLine=L.geoJSON(rt.geometry,{style:{color:'#0879f9',weight:6,opacity:.85}}).addTo(map);map.fitBounds(routeLine.getBounds(),{padding:[35,35]});$('routeInfo').textContent=`Anggaran laluan: ${(rt.distance/1000).toFixed(1)} km · ${(rt.duration/60).toFixed(0)} minit tanpa ramalan kesesakan langsung.`;status('Laluan dikira melalui pelayan demo OSRM.')}catch(e){status('Laluan tidak dapat dikira sekarang. Cuba lagi kemudian. Pelayan demo bukan jaminan ketersediaan.')}};
+$('clear').onclick=()=>{destination=null;if(destMarker)map.removeLayer(destMarker);if(routeLine)map.removeLayer(routeLine);if(searchMarker)map.removeLayer(searchMarker);$('routeInfo').textContent='Pilih lokasi semasa dan destinasi untuk mengira laluan.';$('search').value='';status('Destinasi dan laluan dikosongkan.')};
+function loadReports(){try{reports=JSON.parse(localStorage.getItem('destinasiReports')||'[]')}catch{reports=[]}renderReports()}
+function renderReports(){reportMarkers.forEach(m=>map.removeLayer(m));reportMarkers=[];$('reports').innerHTML='';reports.slice().reverse().forEach((r,revIndex)=>{const m=L.marker([r.lat,r.lon],{icon:pinIcon('#e68a00')}).addTo(map).bindPopup(`<b>${escapeHtml(r.type)}</b><br>${escapeHtml(r.note||'Tiada nota')}<br><small>Laporan setempat · ${new Date(r.time).toLocaleString()}</small>`);reportMarkers.push(m);const div=document.createElement('div');div.className='report';div.innerHTML=`<span>${escapeHtml(r.type)}<br><small>${new Date(r.time).toLocaleDateString()}</small></span><span class="pill">Peranti ini</span>`;div.onclick=()=>{map.setView([r.lat,r.lon],16);m.openPopup()};$('reports').appendChild(div)})}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+$('addReport').onclick=()=>{if(!current&&!destination){status('Dapatkan GPS atau pilih destinasi supaya laporan ada lokasi.');return}const ll=current||destination;reports.push({type:$('reportType').value,note:$('reportNote').value.trim(),lat:ll[0],lon:ll[1],time:Date.now()});try{localStorage.setItem('destinasiReports',JSON.stringify(reports))}catch{}renderReports();$('reportNote').value='';map.setView(ll,15);status('Laporan disimpan pada peranti ini sahaja; belum dihantar ke pelayan.');};
+map.on('click',e=>{if(!destination){setDestination([e.latlng.lat,e.latlng.lng],'Destinasi dipilih pada peta');$('routeInfo').textContent='Destinasi dipilih pada peta. Tekan “Kira laluan”.';status('Destinasi dipilih.')}else{setDestination([e.latlng.lat,e.latlng.lng],'Destinasi baharu');status('Destinasi dikemas kini.')}});
+loadReports();
+if('serviceWorker' in navigator && location.protocol!=='file:'){navigator.serviceWorker.register('./sw.js').catch(()=>{});}
+</script>
+</body></html>
